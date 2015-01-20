@@ -20,6 +20,7 @@ every label.
 #include <boost/property_tree/ptree.hpp>
 #include <boost/property_tree/json_parser.hpp>
 #include <iostream>
+#include <map>
 
 using std::cerr;
 using std::vector;
@@ -45,7 +46,7 @@ vector<float> calcMotion(vector<float> point1, vector<float> point2, vector<floa
 	return motion;
 }
 
-void do_work(std::string filename)
+void do_work(std::string filename, boost::property_tree::ptree pt)
 {
     // Open the file and read the header information
     // Will throw OpenError if reading is not possible.
@@ -60,11 +61,8 @@ void do_work(std::string filename)
 	std::cout << "frames: " << fc << "\n";
 
 	// create the tree to parse to json format. 
-	boost::property_tree::ptree pt;
-	boost::property_tree::ptree subjects;
-	boost::property_tree::ptree subject1, subject2, subject3;
-	boost::property_tree::ptree motions1, motions2, motions3;
 	boost::property_tree::ptree m, mX, mY, mRot;
+	
 
     // Get the labels. Not every point needs to have a label name.
     // We add dummy labels if necessary to supply a name for every point.
@@ -88,6 +86,7 @@ void do_work(std::string filename)
 	vector<float> motion(3);
 	bool test = true;
 
+	std::map<std::string, std::pair<float,float>> points;
     for (int i=0; i<fc; ++i)
 	{
 		filep->get_frame_data(frame_data, i);
@@ -97,74 +96,46 @@ void do_work(std::string filename)
 		for (int j=0; j<ppf; ++j) 
 		{
 			DataPoint3d const &dp=frame_data.points[j];
-			found = labels[j].stripped().find("1");
-			if (found == 2)
+			if (labels[j].stripped().find("*") != 0) 
 			{
-				point1[0] = dp.x();
-				point1[1] = dp.y();
-				counter++;
-			}
-			found = labels[j].stripped().find("2");
-			if (found == 2)
-			{
-				point2[0] = dp.x();
-				point2[1] = dp.y();
-				counter++;
-			}
-			found = labels[j].stripped().find("3");
-			if (found == 2)
-			{
-				point3[0] = dp.x();
-				point3[1] = dp.y();
-				counter++;
-			}
-
-			if (counter == 3)
-			{
-				motion = calcMotion(point1, point2, point3);
-
-				mX.put("", motion[0]);
-				mY.put("", motion[1]);
-				mRot.put("", motion[2]);
-
-				m.push_back(std::make_pair("", mX));
-				m.push_back(std::make_pair("", mY));
-				m.push_back(std::make_pair("", mRot));
-				if (test)
-				{
-					//std::cout<<"motion: " << motion[0] << " " << motion[1] << " " << motion[2] << "\n";
-				}
-				if (labels[j].stripped().find("LH") == 0)
-				{
-					motions1.push_back(std::make_pair("", m));
-				}
-				else if (labels[j].stripped().find("RH") == 0)
-				{
-					motions2.push_back(std::make_pair("", m));
-				}
-				else if (labels[j].stripped().find("LB") == 0)
-				{
-					motions3.push_back(std::make_pair("", m));
-				}
-
-				mX.clear();
-				mY.clear();
-				mRot.clear();
-				m.clear();
-				counter = 0;
-			}
-			switch (dp.status()) {
-				case DataPoint3d::Invalid:
-					++invalid[j];
-					break;
-				case DataPoint3d::Generated:
-					++generated[j];
-					break;
-				case DataPoint3d::Measured:
-					++measured[j];
-					break;
+				points[labels[j].stripped()].first = dp.x();
+				points[labels[j].stripped()].second = dp.y();
 			}
 		}
+		vector<float> motion(3);
+		std::string label, label1, label2, label3;
+		for(auto keyval : pt.get_child("subjects")) 
+		{
+			label = keyval.first;
+			label1 = label + "1";
+			label2 = label + "2";
+			label3 = label + "3";
+
+			point1[0] = points[label1].first;
+			point1[1] = points[label1].second;
+			point2[0] = points[label2].first;
+			point2[1] = points[label2].second;
+			point3[0] = points[label3].first;
+			point3[1] = points[label3].second;
+
+			motion = calcMotion(point1, point2, point3);
+
+			mX.put("", motion[0]);
+			mY.put("", motion[1]);
+			mRot.put("", motion[2]);
+
+			m.push_back(std::make_pair("", mX));
+			m.push_back(std::make_pair("", mY));
+			m.push_back(std::make_pair("", mRot));
+
+			pt.get_child("subjects." + label + ".motion").push_back(std::make_pair("", m));
+
+			mX.clear();
+			mY.clear();
+			mRot.clear();
+			m.clear();
+		}
+
     }
     // report the counts for every label
 	std::cout << "labels: \n";
@@ -172,34 +143,12 @@ void do_work(std::string filename)
 	{
 		std::cout <<labels[i].stripped()<<"\n";
     }
-
-	subject1.put("chest_width", 0.54);
-	subject1.put("chest_thickness",0.32);
-	subject1.put("role","passive");
-	subject1.put("gender","m");
-	subject2.put("chest_width", 0.62);
-	subject2.put("chest_thickness",0.41);
-	subject2.put("role","active");
-	subject2.put("gender","m");
-	subject3.put("chest_width", 0.56);
-	subject3.put("chest_thickness",0.34);
-	subject3.put("role","passive");
-	subject3.put("gender","f");
-
-	subject1.add_child("motion", motions1);
-	subject2.add_child("motion", motions2);
-	subject3.add_child("motion", motions3);
-	subjects.push_back(std::make_pair("LH", subject1));
-	subjects.push_back(std::make_pair("RH", subject2));
-	subjects.push_back(std::make_pair("LB", subject3));
-	pt.add_child("Subjects",subjects);
-
 	std::string file = filename.substr(0,filename.size()-4);
-	std::string name = file + ".json";
+	std::string name = "test1.json";
 	write_json( name, pt);
 }
 
-void open_folder(std:: string folder)
+void open_folder(std:: string folder, boost::property_tree::ptree pt)
 {
 	path p(folder);
 	if (exists(p))
@@ -213,7 +162,7 @@ void open_folder(std:: string folder)
 				{
 					try 
 					{
-						do_work(dir_itr->path().string());
+						do_work(dir_itr->path().string(), pt);
 					}
 					catch (UuIcsC3d::OpenError const &err) 
 					{
@@ -237,17 +186,54 @@ void open_folder(std:: string folder)
 	}
 }
 
+boost::property_tree::ptree parseJson(std::string filename)
+{
+	// create the tree to parse to json format. 
+	boost::property_tree::ptree pt;
+	boost::property_tree::read_json(filename, pt);
+	boost::property_tree::ptree motions;
+	pt.put("subjects.AA.age",155);
+	/*
+	int age = pt.get<int>("subjects.AA.age");
+	std::cout << "Harald's leeftijd is " << age << std::endl;
+
+	for(auto keyval : pt.get_child("subjects")) {
+		std::cout << "   - " << keyval.first
+			<< " = " << keyval.second.get<int>("age") << std::endl;
+	}
+	*/
+	//std::string name = "test.json";
+	//write_json( name, pt);
+	return pt;
+}
+
+
 // The main function checks the number of arguments and deals with exceptions
 int main(int argc, char* argv[])
 {
-    if (argc<2) 
+    if (argc<3) 
 	{
-		cerr<<"Expected folder as argument.\n";
+		cerr<<"Expected filename and folder as arguments.\n";
 		return 1;
     }
+	boost::property_tree::ptree pt;
+	try 
+	{
+		boost::property_tree::read_json(argv[1], pt);
+		std::map<std::string, vector<int>> points;
+		std::cout<<"label: " << points["AA"][2] << std::endl;
+		//pt.put("subjects.AA.motion",155);
+		//std::string name = "test.json";
+	    //write_json( name, pt);
+	}
+	catch(UuIcsC3d::OpenError const &err)
+	{
+		cerr<<"An error occurred while parsing the file "<<err.filename();
+		return 2;
+	}
     try 
 	{
-		open_folder(argv[1]);
+		//open_folder(argv[2], pt);
     } 
 	catch (UuIcsC3d::OpenError const &err) 
 	{
