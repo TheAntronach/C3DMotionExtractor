@@ -21,6 +21,8 @@ every label.
 #include <boost/property_tree/json_parser.hpp>
 #include <iostream>
 #include <map>
+#define _USE_MATH_DEFINES
+#include <math.h>
 
 using std::cerr;
 using std::vector;
@@ -60,9 +62,13 @@ void do_work(std::string filename, boost::property_tree::ptree pt)
     int fc = fi.frame_count();
 	std::cout << "frames: " << fc << "\n";
 
+	// retrieve the label in the filename
+	std::string fileLabel = filename.substr(filename.length()-7, filename.length());
+	fileLabel = fileLabel.substr(0,2); // adjust depending on name
+
 	// create the tree to parse to json format. 
 	boost::property_tree::ptree m, mX, mY, mRot;
-	
+	std::cout<< "filename: " << filename;
 
     // Get the labels. Not every point needs to have a label name.
     // We add dummy labels if necessary to supply a name for every point.
@@ -71,13 +77,11 @@ void do_work(std::string filename, boost::property_tree::ptree pt)
 	{
 		labels.push_back(SpacePaddedString("<no label>"));
     }
-
     // Declare the vectors that maintain the count for each point (label).
     vector<int> invalid(ppf, 0), generated(ppf, 0), measured(ppf, 0);
 
     // Open the C3D file
     std::auto_ptr<UuIcsC3d::C3dFile> filep(fi.open());
-
     // Read every frame in variable frame_data and process it
     UuIcsC3d::FrameData frame_data;
 	std::size_t found;
@@ -85,7 +89,6 @@ void do_work(std::string filename, boost::property_tree::ptree pt)
 	int counter = 0;
 	vector<float> motion(3);
 	bool test = true;
-
 	std::map<std::string, std::pair<float,float>> points;
     for (int i=0; i<fc; ++i)
 	{
@@ -120,16 +123,17 @@ void do_work(std::string filename, boost::property_tree::ptree pt)
 
 			motion = calcMotion(point1, point2, point3);
 
-			mX.put("", motion[0]);
-			mY.put("", motion[1]);
-			mRot.put("", motion[2]);
+			mX.put("", motion[0]); // to meters: ((value)/(scale))*2.54/100.0
+			mY.put("", motion[1]); 
+			mRot.put("", motion[2]*(180/M_PI)); // to degrees
 
 			m.push_back(std::make_pair("", mX));
 			m.push_back(std::make_pair("", mY));
 			m.push_back(std::make_pair("", mRot));
 
 			pt.get_child("subjects." + label + ".motion").push_back(std::make_pair("", m));
-
+			if (fileLabel == label)
+				pt.put("subjects." +label+".role", "active");
 			mX.clear();
 			mY.clear();
 			mRot.clear();
@@ -196,7 +200,6 @@ boost::property_tree::ptree parseJson(std::string filename)
 	/*
 	int age = pt.get<int>("subjects.AA.age");
 	std::cout << "Harald's leeftijd is " << age << std::endl;
-
 	for(auto keyval : pt.get_child("subjects")) {
 		std::cout << "   - " << keyval.first
 			<< " = " << keyval.second.get<int>("age") << std::endl;
@@ -220,8 +223,8 @@ int main(int argc, char* argv[])
 	try 
 	{
 		boost::property_tree::read_json(argv[1], pt);
-		std::map<std::string, vector<int>> points;
-		std::cout<<"label: " << points["AA"][2] << std::endl;
+		//std::map<std::string, vector<int>> points;
+		//std::cout<<"label: " << points["AA"][2] << std::endl;
 		//pt.put("subjects.AA.motion",155);
 		//std::string name = "test.json";
 	    //write_json( name, pt);
@@ -233,7 +236,7 @@ int main(int argc, char* argv[])
 	}
     try 
 	{
-		//open_folder(argv[2], pt);
+		open_folder(argv[2], pt);
     } 
 	catch (UuIcsC3d::OpenError const &err) 
 	{
@@ -242,4 +245,3 @@ int main(int argc, char* argv[])
     }
     return 0;
 }
-
