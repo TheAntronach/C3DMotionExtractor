@@ -67,6 +67,11 @@ void do_work(std::string filename, boost::property_tree::ptree pt)
     UuIcsC3d::FrameData frame_data;
 
 	// initialize some stuff
+	// clear exisiting motion data
+	for(auto keyval : pt.get_child("subjects")) 
+	{
+		pt.get_child("subjects." + keyval.first + ".motion").clear();
+	}
 	boost::property_tree::ptree m, mX, mY, mRot;
 	std::map<std::string, std::pair<float,float>> points;
 	vector<float> point1(2), point2(2), point3(2), motion(3);
