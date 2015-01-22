@@ -27,11 +27,13 @@ vector<float> calcMotion(vector<float> point1, vector<float> point2, vector<floa
 	float center23Y = (point2[1] + point3[1]) / 2;
 	float centerX = (point1[0] + center23X) / 2;
 	float centerY = (point1[1] + center23Y) / 2;
-	float rot = atan2f(centerY, centerX);
+	float deltaY = center23Y-centerY;
+	float deltaX = center23X-centerX;
+	float rot = atan2f(deltaY, deltaX);
 
-	motion[0] = centerX;
-	motion[1] = centerY;
-	motion[2] = rot;
+	motion[0] = centerX/1000.0; // mm to m
+	motion[1] = centerY/1000.0; // mm to m
+	motion[2] = rot*(180/M_PI); // in degrees
 	
 	return motion;
 }
@@ -110,9 +112,9 @@ void do_work(std::string filename, boost::property_tree::ptree pt)
 
 			motion = calcMotion(point1, point2, point3);
 
-			mX.put("", motion[0]/1000.0); // data is in mm
-			mY.put("", motion[1]/1000.0); 
-			mRot.put("", motion[2]*(180/M_PI)); // to degrees
+			mX.put("", motion[0]); 
+			mY.put("", motion[1]); 
+			mRot.put("", motion[2]); 
 
 			m.push_back(std::make_pair("", mX));
 			m.push_back(std::make_pair("", mY));
