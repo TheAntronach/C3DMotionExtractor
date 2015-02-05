@@ -17,12 +17,9 @@ using UuIcsC3d::SpacePaddedString;
 using UuIcsC3d::DataPoint3d;
 using namespace boost::filesystem;
 
-#define LABEL_START	6
-
 vector<float> calcMotion(vector<float> point1, vector<float> point2, vector<float> point3)
 {
 	vector<float> motion(3);
-
 	float center23X = (point2[0] + point3[0]) / 2;
 	float center23Y = (point2[1] + point3[1]) / 2;
 	float centerX = (point1[0] + center23X) / 2;
@@ -51,7 +48,10 @@ void do_work(std::string filename, boost::property_tree::ptree pt)
 	std::cout << "frames: " << fc << "\n";
 
 	// retrieve the label in the filename and change the appropiate subject to active
-	std::string fileLabel = filename.substr(filename.length()-LABEL_START, filename.length()); 
+	int trialStart = (int)filename.find("Trial");
+	std::string fileLabel = filename.substr(trialStart + 5, filename.length()); 
+
+	std::cout<<"fileLabel: " << fileLabel << std::endl;
 	fileLabel = fileLabel.substr(0,2);
 	pt.put("subjects." + fileLabel +".role", "active");	
 
@@ -61,10 +61,8 @@ void do_work(std::string filename, boost::property_tree::ptree pt)
 	{
 		labels.push_back(SpacePaddedString("<no label>"));
     }
-
     // Open the C3D file
     std::auto_ptr<UuIcsC3d::C3dFile> filep(fi.open());
-
     // Read every frame in variable frame_data and process it
     UuIcsC3d::FrameData frame_data;
 
@@ -73,6 +71,7 @@ void do_work(std::string filename, boost::property_tree::ptree pt)
 	for(auto keyval : pt.get_child("subjects")) 
 	{
 		pt.get_child("subjects." + keyval.first + ".motion").clear();
+		
 	}
 	boost::property_tree::ptree m, mX, mY, mRot;
 	std::map<std::string, std::pair<float,float>> points;
