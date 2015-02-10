@@ -51,8 +51,8 @@ void do_work(std::string filename, boost::property_tree::ptree pt)
 	int trialStart = (int)filename.find("Trial");
 	std::string fileLabel = filename.substr(trialStart + 5, filename.length()); 
 
-	std::cout<<"fileLabel: " << fileLabel << std::endl;
 	fileLabel = fileLabel.substr(0,2);
+	std::cout<<"fileLabel: " << fileLabel << std::endl;
 	pt.put("subjects." + fileLabel +".role", "active");	
 
     // get labels and add dummy labels if necessary
