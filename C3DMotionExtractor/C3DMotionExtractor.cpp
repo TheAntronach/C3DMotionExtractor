@@ -6,7 +6,6 @@
 #include <boost/property_tree/json_parser.hpp>
 #include <iostream>
 #include <map>
-
 #define _USE_MATH_DEFINES
 #include <math.h>
 

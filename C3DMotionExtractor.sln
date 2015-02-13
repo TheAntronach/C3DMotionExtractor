@@ -3,6 +3,8 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio 2012
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "C3DMotionExtractor", "C3DMotionExtractor\C3DMotionExtractor.vcxproj", "{DCD7998B-6328-4DA8-9E26-1E6A7CF85360}"
 EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "AnalysisTool", "AnalysisTool\AnalysisTool.vcxproj", "{9B9A64F6-AF10-48B8-908E-D6DB77AEB343}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Win32 = Debug|Win32
@@ -13,6 +15,10 @@ Global
 		{DCD7998B-6328-4DA8-9E26-1E6A7CF85360}.Debug|Win32.Build.0 = Debug|Win32
 		{DCD7998B-6328-4DA8-9E26-1E6A7CF85360}.Release|Win32.ActiveCfg = Release|Win32
 		{DCD7998B-6328-4DA8-9E26-1E6A7CF85360}.Release|Win32.Build.0 = Release|Win32
+		{9B9A64F6-AF10-48B8-908E-D6DB77AEB343}.Debug|Win32.ActiveCfg = Debug|Win32
+		{9B9A64F6-AF10-48B8-908E-D6DB77AEB343}.Debug|Win32.Build.0 = Debug|Win32
+		{9B9A64F6-AF10-48B8-908E-D6DB77AEB343}.Release|Win32.ActiveCfg = Release|Win32
+		{9B9A64F6-AF10-48B8-908E-D6DB77AEB343}.Release|Win32.Build.0 = Release|Win32
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
