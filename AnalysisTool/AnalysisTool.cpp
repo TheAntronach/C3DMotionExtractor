@@ -188,6 +188,7 @@ vector<float> getAngles (boost::property_tree::ptree pt, int from, int to)
 	return angles;
 }
 
+// calculate the angular and linear speed of a given property tree (json file) outputs a series of csv files as well
 void getBothVelocities(boost::property_tree::ptree pt, int from, int to)
 {
 	std::string tag = pt.get_child("trial.id").data();
@@ -227,6 +228,7 @@ void getBothVelocities(boost::property_tree::ptree pt, int from, int to)
 	AngularLinearVelocityOne.close();
 }
 
+// calculates the angle between the forward vector and target vector, outputs a series of csv files as well.
 float getLookAtTarget(boost::property_tree::ptree pt, int from, int to)
 {
 	// create the csv file of LookAtTarget
@@ -457,7 +459,7 @@ void open_folder(std:: string folder)
 				lookAtTargetPerc << pt.get_child("trial.id").data() << ";" << "? - " << pt.get_child("trial.actual_goal").data() << ";" << lookAtTargetPercentage << "%" << ";" << total << std::endl;
 			else
 				lookAtTargetPerc << pt.get_child("trial.id").data() << ";" << pt.get_child("trial.actual_goal").data() << ";" << lookAtTargetPercentage << "%" << ";" << total << std::endl;
-			//getBothVelocities(pt, from, to);
+			getBothVelocities(pt, from, to);
 		}
 		catch (UuIcsC3d::OpenError const &err) 
 		{
