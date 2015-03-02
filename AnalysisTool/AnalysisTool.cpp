@@ -20,7 +20,8 @@ using UuIcsC3d::SpacePaddedString;
 using UuIcsC3d::DataPoint3d;
 using namespace boost::filesystem;
 
-vector<float> getTargetLetter(std::string letter)
+// The unchanged values for the target letters
+vector<float> getTargetLetterOld(std::string letter)
 {
 	vector<float> target(2);
 	if (letter == "a") {
@@ -49,6 +50,47 @@ vector<float> getTargetLetter(std::string letter)
 		target[1] = 2;
 	}
 	return target;
+}
+
+// more accurate values for the position of the letters.
+vector<float> getTargetLetter(std::string letter)
+{
+	vector<float> target(2);
+	if (letter == "a") {
+		target[0] = 3;
+		target[1] = 0;
+	} else if (letter == "b") {
+		target[0] = 3;
+		target[1] = -3;
+	} else if (letter == "c") {
+		target[0] = 0;
+		target[1] = -3;
+	} else if (letter == "d") {
+		target[0] = -3;
+		target[1] = -3;
+	} else if (letter == "e") {
+		target[0] = -3;
+		target[1] = 0;
+	} else if (letter == "f") {
+		target[0] = -3;
+		target[1] = 3;
+	} else if (letter == "g") {
+		target[0] = 0;
+		target[1] = 3;
+	} else if (letter == "h") {
+		target[0] = 3;
+		target[1] = 3;
+	}
+	return target;
+}
+
+vector<float> getCrossProduct(float Ax, float Ay, float Az, float Bx, float By, float Bz)
+{
+    vector<float> vec(3);
+    vec[0] = (Ay*Bz)-(Az*By);
+	vec[1] = (Az*Bx)-(Ax*Bz);
+    vec[2] = (Ax*By)-(Ay*Bx);
+    return vec;
 }
 
 vector<std::pair<float, float>> getPoints (boost::property_tree::ptree pt, int from, int to)
@@ -146,14 +188,23 @@ vector<float> getAngles (boost::property_tree::ptree pt, int from, int to)
 	return angles;
 }
 
-void getVelocity(boost::property_tree::ptree pt, int from, int to)
+void getBothVelocities(boost::property_tree::ptree pt, int from, int to)
 {
+	std::string tag = pt.get_child("trial.id").data();
+	// create a csv file for all Trials together and one for the current trial
+	std::ofstream AngularLinearVelocityAll , AngularLinearVelocityOne;
+	AngularLinearVelocityAll.open("AllLinearAngularVelocities.csv",std::fstream::in | std::fstream::out | std::fstream::app);
+	AngularLinearVelocityOne.open(tag + "LinearAngularVelocities.csv");
+	
 	vector<std::pair<float, float>> points;
 	points = getPoints(pt, from, to);
-	std::ofstream Velocities;
-    Velocities.open (pt.get_child("trial.id").data() + "Velocities.txt");
+
+	vector<float> angles;
+	angles = getAngles(pt, from, to);
+
 	int length = to-from;
 	float velocity, lengthX, lengthY, distance;
+	float angleSpeed, angleSpeedDeg;
 	for (int n = 1; n <= length;n++)
 	{
 		lengthX = points[n+1].first - points[n-1].first;
@@ -163,35 +214,26 @@ void getVelocity(boost::property_tree::ptree pt, int from, int to)
 		velocity = distance/2; // in m/frame
 		velocity = velocity * 100; // in m/s 
 
-		Velocities << velocity << std::endl;
-	}
-
-	Velocities.close();
-}
-
-void getAngleSpeed(boost::property_tree::ptree pt, int from, int to)
-{
-	vector<float> angles;
-	angles = getAngles(pt, from, to);
-	std::ofstream AngleSpeed;
-    AngleSpeed.open (pt.get_child("trial.id").data() + "AngleSpeed.txt");
-	int length = to-from;
-	float angleSpeed, angleSpeedDeg;
-	for (int n = 1; n <= length;n++)
-	{
 		angleSpeed = (angles[n+1] - angles[n-1]) / 2; // radians/frame
 		angleSpeedDeg = angleSpeed*(180/M_PI); // in degrees/frame
 		angleSpeedDeg = angleSpeedDeg * 100; // to degrees/sec;
-		AngleSpeed << angleSpeedDeg << std::endl;
+		if (angleSpeedDeg <= 180.0 && angleSpeedDeg >= -180.0)
+		{
+			AngularLinearVelocityOne << velocity << ";" << std::abs(angleSpeedDeg) << std::endl;
+			AngularLinearVelocityAll << velocity << ";" << std::abs(angleSpeedDeg) << std::endl;
+		}
 	}
-
-	AngleSpeed.close();
+	AngularLinearVelocityAll.close();
+	AngularLinearVelocityOne.close();
 }
 
-void getLookAtTarget(boost::property_tree::ptree pt, int from, int to)
+float getLookAtTarget(boost::property_tree::ptree pt, int from, int to)
 {
-	std::ofstream lookAtTarget;
-    lookAtTarget.open (pt.get_child("trial.id").data() + "LookAtTarget.txt");
+	// create the csv file of LookAtTarget
+	std::ofstream lookAtTargetOne;
+	std::ofstream lookAtTargetperWalker;
+	std::ofstream lookAtTargetAll;
+	std::ofstream lookAtTargetLetterA, lookAtTargetLetterB, lookAtTargetLetterC, lookAtTargetLetterD, lookAtTargetLetterE, lookAtTargetLetterF, lookAtTargetLetterG, lookAtTargetLetterH;
 
 	bool start = false;
 	std::string motionX, motionY, walker, targetLetter, outputAngle;
@@ -200,6 +242,7 @@ void getLookAtTarget(boost::property_tree::ptree pt, int from, int to)
 	float fMotionX, fMotionY, fAngle;
 	float radianAngleA, walkerVecX, walkerVecY, targetVecX, targetVecY, lengthTargetVec, lengthWalkerVec, normTargetVecX, normTargetVecY, dotProduct, angle, angleDeg;
 	vector<float> target(2);
+	vector<float> crossproduct(3);
 	int yes = 0, no = 0, total = 0;
 	walker = pt.get_child("trial.id").data();
 	walker = walker.substr(0,2);
@@ -207,8 +250,32 @@ void getLookAtTarget(boost::property_tree::ptree pt, int from, int to)
 	target = getTargetLetter(targetLetter);
 	int n = 1;
 	int frame = 1;
+	float lookAtCounter = 0;
+	float lookAtPercentage = 0;
+	float length = to - from;
 
-	std::cout<< "walker: " << walker << " target: " << targetLetter << std::endl;
+	// initialize the csv files
+	lookAtTargetOne.open (pt.get_child("trial.id").data() + "LookAtTarget.csv");
+
+	lookAtTargetLetterA.open("ALookAtTarget.csv",std::fstream::in | std::fstream::out | std::fstream::app);
+	lookAtTargetLetterB.open("BLookAtTarget.csv",std::fstream::in | std::fstream::out | std::fstream::app);
+	lookAtTargetLetterC.open("CLookAtTarget.csv",std::fstream::in | std::fstream::out | std::fstream::app);
+	lookAtTargetLetterD.open("DLookAtTarget.csv",std::fstream::in | std::fstream::out | std::fstream::app);
+	lookAtTargetLetterE.open("ELookAtTarget.csv",std::fstream::in | std::fstream::out | std::fstream::app);
+	lookAtTargetLetterF.open("FLookAtTarget.csv",std::fstream::in | std::fstream::out | std::fstream::app);
+	lookAtTargetLetterG.open("GLookAtTarget.csv",std::fstream::in | std::fstream::out | std::fstream::app);
+	lookAtTargetLetterH.open("HLookAtTarget.csv",std::fstream::in | std::fstream::out | std::fstream::app);
+
+	lookAtTargetAll.open ("LookAtTargetAllFiles.csv", std::fstream::in | std::fstream::out | std::fstream::app);
+
+	lookAtTargetperWalker.open (walker + "LookAtTarget.csv", std::fstream::in | std::fstream::out | std::fstream::app);
+
+	if (pt.get_child("trial.task").data() == "?")
+		lookAtTargetOne << "target: ? - " << targetLetter << std::endl;
+	else
+		lookAtTargetOne << "target: " << targetLetter << std::endl;
+
+	lookAtTargetOne << "frame; degrees" << std::endl;
 	
 	// only do the walker:
 	for(auto motions : pt.get_child("subjects." + walker + ".motion")) 
@@ -252,22 +319,82 @@ void getLookAtTarget(boost::property_tree::ptree pt, int from, int to)
 					normTargetVecY = targetVecY / lengthTargetVec;
 
 					dotProduct = walkerVecX * normTargetVecX + walkerVecY * normTargetVecY;
-
+					crossproduct = getCrossProduct(walkerVecX, walkerVecY, 0, targetVecX, targetVecY, 0);
 					angle = std::acosf(dotProduct / 1); // length is 1, they are unit vectors
-
-					angleDeg = angle*(180/M_PI);
+					
+					angleDeg = angle*(180/M_PI); //  to degrees
 
 					// lookAtTarget yes/no
-					lookAtTarget << " dotProduct: " << dotProduct << " fAngle: " << fAngle << " angle: " << angle << " AngleDeg: " << angleDeg << std::endl;
+					if (dotProduct > 0 )
+						lookAtCounter++;
+					if (crossproduct[2] >= 0)
+					{
+						if (targetLetter == "a")
+							lookAtTargetLetterA << angleDeg << std::endl;
+						else if (targetLetter == "b")
+							lookAtTargetLetterB << angleDeg << std::endl;
+						else if (targetLetter == "c")
+							lookAtTargetLetterC << angleDeg << std::endl;
+						else if (targetLetter == "d")
+							lookAtTargetLetterD << angleDeg << std::endl;
+						else if (targetLetter == "e")
+							lookAtTargetLetterE << angleDeg << std::endl;
+						else if (targetLetter == "f")
+							lookAtTargetLetterF << angleDeg << std::endl;
+						else if (targetLetter == "g")
+							lookAtTargetLetterG << angleDeg << std::endl;
+						else if (targetLetter == "h")
+							lookAtTargetLetterH << angleDeg << std::endl;
+
+						lookAtTargetOne << (frame) <<";" << angleDeg << std::endl;
+						lookAtTargetperWalker << angleDeg << std::endl;
+						lookAtTargetAll << angleDeg << std::endl;
+					}
+					else
+					{
+						if (targetLetter == "a")
+							lookAtTargetLetterA << -angleDeg << std::endl;
+						else if (targetLetter == "b")
+							lookAtTargetLetterB << -angleDeg << std::endl;
+						else if (targetLetter == "c")
+							lookAtTargetLetterC << -angleDeg << std::endl;
+						else if (targetLetter == "d")
+							lookAtTargetLetterD << -angleDeg << std::endl;
+						else if (targetLetter == "e")
+							lookAtTargetLetterE << -angleDeg << std::endl;
+						else if (targetLetter == "f")
+							lookAtTargetLetterF << -angleDeg << std::endl;
+						else if (targetLetter == "g")
+							lookAtTargetLetterG << -angleDeg << std::endl;
+						else if (targetLetter == "h")
+							lookAtTargetLetterH << -angleDeg << std::endl;
+
+						lookAtTargetOne << (frame) <<";" << -angleDeg << std::endl;
+						lookAtTargetperWalker << -angleDeg << std::endl;
+						lookAtTargetAll << -angleDeg << std::endl;
+					}
 				}
 				n = 1;
 				frame++;
 				
 			}
 		}
-		//std::cout<<"data: " << motions.second.data() << std::endl;
 	}
-	lookAtTarget.close();
+	
+	lookAtTargetOne.close();
+	lookAtTargetLetterA.close();
+	lookAtTargetLetterB.close();
+	lookAtTargetLetterC.close();
+	lookAtTargetLetterD.close();
+	lookAtTargetLetterE.close();
+	lookAtTargetLetterF.close();
+	lookAtTargetLetterG.close();
+	lookAtTargetLetterH.close();
+	lookAtTargetperWalker.close();
+	lookAtTargetAll.close();
+
+	lookAtPercentage =  (lookAtCounter/length) * 100.0;
+	return lookAtPercentage;
 }
 
 boost::property_tree::ptree loadTree(std::string filename)
@@ -302,6 +429,11 @@ void open_folder(std:: string folder)
 		std::cout<< p << "is not a folder";
 		return;
 	}
+	std::ofstream lookAtTargetPerc, AngularLinearVelocity;
+	float lookAtTargetPercentage = 0;
+
+    lookAtTargetPerc.open ("LookAtTarget.csv");
+	lookAtTargetPerc << "Trial; target; lookedAtTarget; frames" << std::endl;
 
 	directory_iterator end_iter;
 	for (directory_iterator dir_itr(p); dir_itr != end_iter; ++dir_itr)
@@ -313,16 +445,19 @@ void open_folder(std:: string folder)
 		}
 
 		boost::property_tree::ptree pt;
-		int from, to;
+		int from, to, total;
 		try 
 		{
 			pt = loadTree(dir_itr->path().string());
 			from = std::stoi(pt.get_child("trial.dense_movement_start").data());// start dense movement
 			to = std::stoi(pt.get_child("trial.dense_movement_end").data()); // end dense movement
-
-			getLookAtTarget(pt, from, to);
-			getAngleSpeed(pt, from, to);
-			getVelocity(pt, from, to);
+			total = to - from;
+			lookAtTargetPercentage = getLookAtTarget(pt, from, to);
+			if (pt.get_child("trial.task").data() == "?")
+				lookAtTargetPerc << pt.get_child("trial.id").data() << ";" << "? - " << pt.get_child("trial.actual_goal").data() << ";" << lookAtTargetPercentage << "%" << ";" << total << std::endl;
+			else
+				lookAtTargetPerc << pt.get_child("trial.id").data() << ";" << pt.get_child("trial.actual_goal").data() << ";" << lookAtTargetPercentage << "%" << ";" << total << std::endl;
+			//getBothVelocities(pt, from, to);
 		}
 		catch (UuIcsC3d::OpenError const &err) 
 		{
@@ -330,6 +465,7 @@ void open_folder(std:: string folder)
 			return;
 		}
 	}
+	lookAtTargetPerc.close();
 }
 
 // The main function checks the number of arguments and deals with exceptions
